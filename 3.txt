@@ -1,0 +1,72 @@
+/usr/local/arm/4.4.3/bin/.arm-none-linux-gnueabi-ld: error: Source object lib_generic/libgeneric.a(string.o) has EABI version 0, but target u-boot has EABI version 5
+
+工具链用的是友善之臂的4.4.3，不同地方下的4.4.3还不一样，有的损坏了。我用的
+
+是arm-linux-gcc-4.4.3-2010-728.tar.gz
+
+然后在我编译uboot的时候出现了这个错误。但是我用的uboot也不知道是哪里的，名字是u-boot-1.1.4-yl2410-070412.tar.bz2
+
+其中这个uboot是别人改过的，makefile里面的工具链的位置不是我要的了
+
+改回来后编译了很久出现了这个问题。应该是版本的问题。（但是网上的问题一般都是说but target u-boot has EABI version 0）而我的是5报错。
+
+那就是说工具链不行？？？？？
+
+
+http://bbs.chinaunix.net/thread-1938330-1-1.html
+这个帖子说他换了编译器，可是出现的问题又不一样了。有人说可能是除法，要他实施浮点运算、
+后面楼主改了cpu/arm920t/config.mk文件中的
+PLATFORM_RELFLAGS += -fno-strict-aliasing  -fno-common -ffixed-r8 -msoft-float
+改为PLATFORM_RELFLAGS += -fno-strict-aliasing  -fno-common -ffixed-r8然后顺利通过，
+   可是人家报错跟我的是相反的
+然后我也照样改了，可是还是同样的错误，所以我应该换一下编译器的版本试试
+
+
+http://bbs.eeworld.com.cn/thread-419596-1-1.html
+还有这个帖子，后面他是改了他的源文件
+void DispProgressBar(float percent, int bPaintBK, int x, int y) 是这个uboot不支持浮点数的。汗！
+改成unsigned char  percent 搞定。  这个要使uboot的编译器支持浮点数才能用这种代码
+
+
+
+
+http://blog.csdn.net/linglongqiongge/article/details/48546453
+这个帖子就是跟我同样的错误，uboot版本较高
+
+
+
+然而我不知道如何下手，于是我换了一个uboot版本1.3.4，从官网下的，但还是编译
+报错了，board.c:138: error: inline function 'coloured_LED_init' cannot be declared weak
+出现错误，内嵌函数不能被声明为weak属性，打开lib_arm/board.c，定位到127行开始，将其注释掉（蓝色部分），修改后结果如下：
+
+
+void inline __coloured_LED_init (void) {}
+//void inline coloured_LED_init (void) __attribute__((weak, alias("__coloured_LED_init")));
+void inline __red_LED_on (void) {}
+//void inline red_LED_on (void) __attribute__((weak, alias("__red_LED_on")));
+void inline __red_LED_off(void) {}
+//void inline red_LED_off(void)      __attribute__((weak, alias("__red_LED_off")));
+void inline __green_LED_on(void) {}
+//void inline green_LED_on(void) __attribute__((weak, alias("__green_LED_on")));
+void inline __green_LED_off(void) {}
+//void inline green_LED_off(void)__attribute__((weak, alias("__green_LED_off")));
+void inline __yellow_LED_on(void) {}
+//void inline yellow_LED_on(void)__attribute__((weak, alias("__yellow_LED_on")));
+void inline __yellow_LED_off(void) {}
+//void inline yellow_LED_off(void)__attribute__((weak, alias("__yellow_LED_off")));
+void inline __blue_LED_on(void) {}
+//void inline blue_LED_on(void)__attribute__((weak, alias("__blue_LED_on")));
+void inline __blue_LED_off(void) {}
+//void inline blue_LED_off(void)__attribute__((weak, alias("__blue_LED_off")));
+[root@localhost u-boot-2009.08]# make clean
+[root@localhost u-boot-2009.08]# make
+
+至于为什么要这样做，不知道原因
+原因就是，这是一个bug，denx官网给出了解决办法
+http://lists.denx.de/pipermail/u-boot/2009-November/063605.html
+
+
+
+后面有出现问题了，cpu/arm920t/start.S:119: undefined reference to `coloured_LED_init'
+http://blog.sina.com.cn/s/blog_b90c3cdf0101i5qd.html
+这个帖子遇到的一些连week问题跟我一样
