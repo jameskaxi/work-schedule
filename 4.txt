@@ -1,0 +1,45 @@
+
+vi 下如何进行批量注释
+
+vi的基本操作
+
+vi的常用配置
+
+ubuntu的中文界面设置与中文输入法的配置
+
+如何建立ctags
+
+
+uboot编译后生成的几个文件分别是什么uboot与uboot.bin....
+u-boot.bin: 116K，原始二进制文件，用于下载到启动ROM进行系统引导；
+u-boot: 384K，ELF格式映像文件，可加载到SDRAM或SRAM中进行调试；
+u-boot.srec motorola s-records格式映像
+system.map UBOOT映像文件的符号表，各符号表的链接地址
+
+
+原来uboot里面SD卡启动叫做movinand启动。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
