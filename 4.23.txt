@@ -1,0 +1,63 @@
+
+我对VLFFT例子的理解：
+首先是一些常规的初始化；
+接下来是创建两个任务，一个主，一个从；
+主任务主要是对从核的管理，通过消息来传递信息；
+从核主要是对数据的处理，对一块很大的数据进行处理，
+并且大数据分了几个片段，通过参数传每个核的ID进去，处理不同的段。8核同时在跑。
+主核干嘛呢，比如‘开始第一次处理’，‘可以进行第二次处理了’。。。。。
+
+
+针对不同的功能肯定有不同的八核运作模式。常用的是算法的处理。
+
+
+新建一个debug.h里面有各种像PRINTF的开关宏
+#ifdef ENABLE_PRINTF
+	System_printf("pass init 3\n");
+	System_printf("total size FFT: %d\n", VLFFTparams.N );
+	System_printf("1st iter FFT: %d\n", VLFFTparams.N1);
+	System_printf("2nd iter FFT: %d\n", VLFFTparams.N2);
+#endif
+
+
+首先定义一系列的结构体，用来初始化参数。然后通过xx_init(&_struct，，)来传递参数初始化。
+而这些结构体参数名的大写部分又是宏定义了的，所以可以通过宏定义来更改参数的值。
+如 xx->MaxOfNum = MAX_OF_NUM (xx是结构体)
+void vlfftBuffersInit( VLFFTbuffers_t  *VLFFTbuffers,
+                       float           *pInBufInternal,
+                       float           *pOutBufInternal,
+                       float           *pWorkBuf0Internal,
+                       float           *pfftInBuf,
+                       float           *pfftOutBuf
+                     ) {
+
+	VLFFTbuffers->pInBufInternal  = pInBufInternal;
+	VLFFTbuffers->pOutBufInternal = pOutBufInternal;
+	VLFFTbuffers->pWorkBuf0Internal = pWorkBuf0Internal;
+	VLFFTbuffers->pfftInBuf = pfftInBuf;
+	VLFFTbuffers->pfftOutBuf= pfftOutBuf;
+}
+
+
+
+
+xx_init(a,b)
+{
+	//做正常的事，比如只有4核的时候
+
+	if(b==8)//如果有八核，再继续8核的情况
+	{
+
+	}
+	//当然这个b参数绝不是仅仅一个开关，比如如果下面还要进行迭代
+	for(int i=0; i < b; i++)
+		;//do something
+}
+
+
+
+定义一个枚举类型。里面存档的是各种开关命令。
+然后有些函数需要某些标配的时候只要通过const参数穿进去就行。
+broadcastMessages(int a,int b,const MODE)//MODE就是一个枚举。可以传递不同的命令进去
+
+
