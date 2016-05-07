@@ -1,0 +1,77 @@
+
+1. 关于DSP启动，请参考“KeyStone Architecture Bootloader User Guide”；
+2. eeprom中烧写的是IBL二级启动程序，应用程序.out一般烧写在NAND flash、NOR flash，或者使用其他方式来加载；
+3.关于多核启动的实现原理，我的理解如下：core0执行RBL（一级启动）、IBL（二级启动），其中IBL的最后一步是加载应用程序到内存（各个段加载的地址由CMD文件决定），然后跳转执行应用程序；此时的core1~7一直处于IDEL状态，等待被唤醒（从RBL到IBL等过程均是由core0执行的，core1~7一直处于休眠状态）。多核启动只需在应用程序中做些内容：具体是core0将程序入口跳转地址写入core1~7的magic_addr(0x87fffc)，然后触发core1~7的IPC中断唤醒，使其跳转至指定地址执行应用程序。
+
+总的来说，如果你要运行一个多核启动的程序，你需要做两件事：
+1. 是编写一个用DNUM区分的程序，通过判断DNUM值做分支，运行每个core的执行函数（里面可以加入printf打印信息，用来判断执行成功）。最重要的是，当DNUM==0（即core0）时，它需要做以下工作：将程序入口地址（_c_int00）写入到其他core的MAGIC_ADDR（C6678上是LL2的最后32bit，局部地址为0x0087fffc）上，然后向该core发送IPC唤醒；
+2. 是编写一个CMD文件，注意必须将text段、cinit段、switch段和const段放入SL2中。其他段可放入LL2。
+这个程序写好后，你可以在CCS下，将程序下载到core0中。如果你的程序执行成功，应该可以看到所有core都执行了各自的函数。然后你可以将这个程序烧写到NAND flash中。
+
+
+
+
+Hi
+最近由于项目刚接触C6678多核DSP，论坛上看了许多资料。但是实践过程中遇到一些问题，想请教下各位专家。
+1. 关于_c_int00入口的固定。为了使多核启动起来，需要在0核程序写各个核的入口地址到magic addr，所以必须要知道C入口的地址。而_c_int00_的固定应该是要更改cmd文件吧？而我用的是SYS/BIOS。我发现在debug目录下面有一个link.cmd，而这个文件有说明是不要修改的。意思是我得自己新建一个cmd文件？我有了解到在Tools->RTSC Tools->Platform->new/Edit可以更改，但是我new了，在external memory下add了一个，但是也没发现在哪里(*.map/link.cmd)有什么变化。
+2. 关于cmd文件的编写。哪里有关于cmd文件编写的文档？用BIOS和不用是有不同的吧？cfg文件又要怎么更改呢？
+
+新手，要学的还很多，希望各位不吝赐教。
+
+yq
+
+/********************************************************/
+/* Sample command file with MEMORY directive */
+/********************************************************/
+file1.obj file2.obj /* Input files */
+--output_file=prog.out /* Options */
+#define BUFFER 0
+MEMORY
+{
+FAST_MEM (RX): origin = 0x00000000 length = 0x00001000 + BUFFER
+SLOW_MEM (RW): origin = end(FAST_MEM) length = 0x00001800 - size(FAST_MEM)
+EXT_MEM (RX): origin = 0x10000000 length = size(FAST_MEM)
+
+
+
+
+/**************************************************/
+/* Sample command file with SECTIONS directive */
+/**************************************************/
+file1.obj file2.obj /* Input files */
+--output_file=prog.out /* Options */
+SECTIONS
+{
+	.text: load = EXT_MEM, run = 0x00000800
+	.const: load = FAST_MEM
+	.bss: load = SLOW_MEM
+	.vectors: load = 0x00000000
+	{
+		t1.obj(.intvec1)
+		t2.obj(.intvec2)
+		endvec = .;
+	}
+	.data:alpha: align = 16
+	.data:beta: align = 16
+}
+
+
+
+如果任务不多，推荐使用noOS来建立工程。如果任务多，还是使用SYS/BIOS比较好。
+
+
+
+系统定义
+.cinit     存放程序中的变量初值和常量
+.const   存放程序中的字符常量、浮点常量和用const声明的常量
+.switch  存放程序中switch语句的跳转地址表
+.text     存放程序代码
+.bss      为程序中的全局和静态变量保留存储空间
+.far       为程序中用far声明的全局和静态变量保留空间
+.stack    为程序系统堆栈保留存储空间，用于保存返回地址、函数间的参数传递、存储局部变量和保存中间结果
+.sysmem 用于程序中的malloc 、calloc 、和realoc 函数动态分配存储空间
+“.args”段用于存储程序中的main(…)函数的“argc”、“argv”和“envp”参数值，该属性值一般保持默认值即可。
+The .cio section is a buffer used by printf and related functions. You can typically afford slower performance of such I/O functions, so it is placed in off-chip memory.
+关于xdc.meta确实不是很清楚。看还有谁能答复呢。
+
+

@@ -1,0 +1,28 @@
+
+先把必要的在主核中完成，比如初始化EMIF，初始化DDR3，初始化等等
+然后再(同一个工程或者不同工程)编写应用软件，并使用不同的cmd文件。最后再加入multiboot()部分，来唤醒其他核。
+最后链接，烧写程序。
+
+
+if(C6678_EVM==gDSP_board_type)
+{
+	//DSP core speed: 100*10/1=1000MHz
+	KeyStone_main_PLL_init(100, 10, 1); 
+
+	//On Shannon, SPI belong to clock domain 3 which need be enabled
+	KeyStone_enable_PSC_module(CSL_PSC_PD_ALWAYSON, 3);
+}
+else if(C6670_EVM==gDSP_board_type)
+{
+	//DSP core speed: 122.88*236/29= 999.9889655MHz
+	KeyStone_main_PLL_init(122.88, 236, 29);
+}
+
+
+
+
+还存在的问题有：
+1. LOG_printed实时打印的问题
+2. c入口和magic地址问题
+3. EMIF初始化问题
+4. EMIF配置成16位或者8位或者32位的问题

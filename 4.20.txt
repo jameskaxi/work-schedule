@@ -1,0 +1,134 @@
+1. rmd
+2. magic addr
+3. _c_int00_
+
+
+转换工具链的map文件是根据工程里面的rmd文件自动生成的。是工程里面的rmd文件！是工程里面的rmd文件！是工程里面的rmd文件！
+下面是工程中的rmd文件！
+-stack 0x1000
+-heap  0x400
+MEMORY
+{
+	//CORE0
+	DDR3 : o = 0x80000000,   l = 0x01000000
+	BOOT_CORE0   : o = 0x10800000,   l = 0x000000c0
+	L2   : o = 0x108000c0,   l = 0x000FFF40
+}
+SECTIONS
+{
+	.text > L2
+    .DDRText{MulticoreBoot.obj(.text)}>L2
+    .stack    > L2
+
+	.cio  > DDR3
+	.bss  > DDR3
+	.const > DDR3
+	.far   > DDR3
+	.fardata > DDR3
+	.neardata > DDR3
+	.switch   > DDR3
+	.sysmem   > DDR3
+	platform_lib > DDR3
+	.cinit > DDR3
+
+	.myboot
+    {
+       *.*<boot.obj>(.text)
+
+    } > BOOT_CORE0
+}
+
+
+boot magic 地址是 1x087FFFC 开始的最后一个字节。在这个地址写入 _c_init_0 ( 0x1X800000 ) 地址。
+工具链是把这个地址删除了的，所以需要人为的将这个地址写上去。
+下面是ledtest写magic地址的代码！
+
+pBootMagicAddCore0 = (int*)0x108FFFFC;
+(*pBootMagicAddCore0)+= 0x10000000;			// translate to global address/pBootMagicAddCore0地址的值是多少呢why+0x10000000
+for(i = 1;i < CORE_NUM_6670; i++)			//write the other cores' boot magic address
+{
+   *(pBootMagicAddCore0+ (0x01000000*i)/4 ) = (*pBootMagicAddCore0) + 0x01000000 * i;	//除以4是因为一个地址四个字节
+}
+
+
+第一次测试：
+将pBootMagicAddCore0 = (int*)0x108FFFFC;改为(int*)0x1087FFFC
+因为我觉得magic地址是(int*)0x108FFFFC；
+结果其他核果真起不来。
+
+第二次测试：
+将pBootMagicAddCore0 = (int*)0x1087FFFC改回来，然后将
+(*pBootMagicAddCore0)+= 0x10000000;	注释掉。猜想其他核应该是起不来
+结果其他核果真是起不来！
+
+结论，工具链链接的时候是把magic地址删掉了的，所以还是要人为加上去。但是为什么是这样加呢？这不懂！
+
+10800000 1087FFFF 512K CorePac0 L2 SRAM
+10880000 108FFFFF 512K Reserved	
+
+108FFFFF不是CorePac0保留的地址吗？最后一个字是magic地址那也是1087FFFC呀，怎么成了108FFFFC
+总结：所以那个钱丰的文档说每个核的boot magic 地址是0x1x87fffc应该是不正确的，应该还是0x1x8ffffc
+
+不同core的boot magic address 存在于该core“本地”L2 RAM 的最后一个word里？？？？？
+00800000 0087FFFF 512K Local L2 SRAM		
+00880000 00DFFFFF 5M+512K Reserved
+
+
+摘要：
+
+All L1D and L1P memory is configured by the boot code as cache memory. But L2 memory is configured as addressable memory
+
+Use the following options on the hex conversion utility command line or command
+file:
+-boot; option to create a boot table
+-a; ASCII format
+-e _c_int00; Standard entry point for C library
+-order L; Little endian format
+-memwidth32; memory width
+-romwidth32; rom width
+-o my_app.hex; specify the output filename
+my_app.out; specify the input file
+
+
+很重要的信息！很重要的信息！很重要的信息！很重要的信息！很重要的信息！很重要的信息！很重要的信息！很重要的信息！
+
+对于核内地址，局部地址0x008xxxxx对应全局地址0x108xxxxx+DNUM*0x01000000
+所以上面ledtest中magic地址里面写的是10000000对应局部地址为0地址！！！！！！！！！！！！！——-----------------—
+
+
+不能go main 是由于没有用gel初始化？？？？实验证明貌似是的！
+
+
+
+
+//********************************************************************************************
+
+											总结：
+
+//********************************************************************************************
+
+1. 每个核的_c_int00_是从所谓的0地址。不过每个核的_c_int00_需要转换成全局地址。
+2. 不能go main是因为没有初始化DDR这些的？没有具体去排查。只能说初始化肯定就没问题了。
+3. magic地址是L2的最后一个字。包括所谓的 reserved地址。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
