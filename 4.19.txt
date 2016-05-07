@@ -1,0 +1,106 @@
+1.核间通信
+2.多核启动的问题
+
+
+核间通信
+① 使用共享存储空间。使用共享存储空间，为了提高可靠性采用单向机制，由一个核写入，一个核读取。完成写入或者读取操作后，给出状态信息，该共享存储空间进入空闲状态。
+② 使用特定的存储空间。特定的存储空间一般专门用于某个任务，和共享存储空间相比，状态信息由核自身完成，不需要其他核参与。例如EDMA传输，采用专门的缓冲区存储各个核的EDMA收发的数据，EDMA一旦接收到数据，发出中断到核，进行处理。
+③ 存储空间转换。共享存储空间和特定的存储空间，一般都需要很多资源开销，在程序运行的大量中间变量，最常用的仍然是存储空间转换。就是某个核完成任务，产生的结果存储到相应位置后，就放弃对该存储空间的使用权，下一个核接管该存储空间的使用权，对该空间数据进行操作。
+　　不论哪种数据通信方式，都需要采用状态机制进行管理，状态机制可以由中断或者消息产生。所以，状态信息的核间通信是组织数据通信的关键。
+
+
+多核内存分配主要是在制作镜像文件时的.rmd文件
+
+
+
+下面是关于如何启动多核
+• During the boot process the boot loader code is loaded into the L2 of
+corePac0 from the ROM.
+• The high 0xD23F bytes of this L2 is reserved for the boot code. User should
+not overwrite this area.
+• All the other CorePacs are executing IDLE.
+• The user should load the image into the L2 of CorePacs they want to boot
+up. (Use MAD Utilities)
+• Before setting the boot complete register, the user should also set the
+start address of the code in the respective BOOT MAGIC ADDRESS of the
+CorePac’s L2.
+• Finally the user image should also write the IPC interrupt register to bring
+the required CorePacs out of IDLE.
+
+
+
+下面是关于多核启动的问题
+Q: What if more boot parameters are needed than can be
+specified in the boot pins?
+A:Other parameter values can be updated through I2C
+boot mode
+• In this case, the I2C boot will start with a I2C boot parameter table
+which will in turn load a custom updated parameter table for a
+specific boot mode.
+• Once the default parameter table is updated, the boot code
+executes using the updated boot parameter structure, using the
+same process as the primary boot mode.
+
+
+
+下面需要特别注意
+Second Stage Boot Load Specifics
+• The EEPROM image loaded will have two boot parameter tables
+• The First one will be an I2C boot parameter table, setting the core clock and
+also the address of the next block.
+• The next block will have the desired boot mode specific boot parameter
+table with the user desired values.
+• After loading this image into the EEPROM, the boot mode in the boot strap
+is set for I2C master boot.
+• After POR, the I2C boot code is executed as a first stage boot load, which
+will update the default boot parameter table and re-enter the boot code,
+executing the boot code utilizing the user specific parameters.
+• Advantages
+– Additional Boot Modes (TFTP/NAND/NOR)
+– DDR initialization
+总结这段话就是说：如果加载EEPROM那么就有两种启动参数表要配置。
+首先是I2C的启动参数表，主要设置时钟和下一种启动方式。
+然后是下一种启动方式的启动参数表，这个是可以用户自己定义的，比如说TFTP启动，NAND启动等等。
+
+
+• Two stage boot loaders for booting an
+application from the NOR/NAND flash or
+Ethernet over I2C EEPROM
+• The 1 st stage boot loader loads the IBL config
+table, initialize PLL(in EVM) and loads and runs
+the 2 nd stage boot loader
+• The 2 nd stage boot loader loads the
+application image
+
+
+• IBL resides in I2C EEPROM in address 0x51.
+• In EVM, the FPGA always boots the DSP in I2C
+master boot at address 0x51
+• IBL executes the PLL fix and then re-enters the
+boot process in the boot mode set by the
+bootstrap pins.
+• In addition, IBL also supports NAND/NOR and
+Ethernet boot originally not supported by
+ROM Boot Loader.
+
+
+
+我的理解哈！
+只要把程序下载到比如说Nor-Flash，这个程序是可以由两种方式启动的。
+第一种是配置成I2C启动模式(1101)，然后通过设置INDEX再从FLAHS加载程序；
+第二种是直接配置成SPI FLASH启动模式(1011)，然后从FLASH加载程序。
+这两种都是从FLASH加载，只是引导的方式不一样。
+这样的理解还不知道正不正确？？？？？？？？
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,438 @@
+1.GEL
+2.测试记录
+3.bat批处理
+
+//---------------------------------------------------------------------
+								加载GEL
+//---------------------------------------------------------------------
+C66xx_0: GEL Output: Setup_Memory_Map...
+C66xx_0: GEL Output: Setup_Memory_Map... Done.
+C66xx_0: GEL Output: No initialization performed since bootmode = 0x00000006 
+C66xx_0: GEL Output: You can manually initialize with GlobalDefaultSetup
+C66xx_0: GEL Output: Invalidate All Cache...
+C66xx_0: GEL Output: Invalidate All Cache... Done.
+C66xx_0: GEL Output: GEL Reset...
+C66xx_0: GEL Output: GEL Reset... Done.
+
+加载GEL的时候，没有将C6670设置成NO-BOOT	模式出现的错误信息
+
+
+//---------------------------------------------------------------------
+								GEL配置信息
+//---------------------------------------------------------------------
+下面的GEL配置信息是由D:\back\new\gel_1中的GEL文件。注意有几个同名的GEL文件类容有些许差别，至于有什么样的区别有待考查
+C66xx_0: GEL Output: Setup_Memory_Map...
+C66xx_0: GEL Output: Setup_Memory_Map... Done.
+C66xx_0: GEL Output: Global Default Setup...
+C66xx_0: GEL Output: C6670L GEL file Ver is 2.0 
+C66xx_0: GEL Output: Setup Cache... 
+C66xx_0: GEL Output: L1P = 32K   
+C66xx_0: GEL Output: L1D = 32K   
+C66xx_0: GEL Output: L2 = ALL SRAM   
+C66xx_0: GEL Output: Setup Cache... Done.
+C66xx_0: GEL Output: Main PLL (PLL1) Setup ... 
+C66xx_0: GEL Output: PLL1 Setup for DSP @ 983.0 MHz.
+C66xx_0: GEL Output:            SYSCLK2 = 327.6667 MHz, SYSCLK5 = 196.6 MHz.
+C66xx_0: GEL Output:            SYSCLK8 = 15.35938 MHz.
+C66xx_0: GEL Output: PLL1 Setup... Done.
+C66xx_0: GEL Output: Power on all PSC modules and DSP domains... 
+C66xx_0: GEL Output: Security Accelerator disabled!
+C66xx_0: GEL Output: Power on all PSC modules and DSP domains... Done.
+C66xx_0: GEL Output: PA PLL (PLL3) Setup ... 
+C66xx_0: GEL Output: PA PLL Setup... Done.
+C66xx_0: GEL Output: DDR3 PLL (PLL2) Setup ... 
+C66xx_0: GEL Output: DDR3 PLL Setup... Done.
+C66xx_0: GEL Output: DDR begin (1333 auto)
+C66xx_0: 2: XMC setup complete.
+C66xx_0: GEL Output: 
+DDR3 initialization is complete.
+C66xx_0: GEL Output: DDR done
+C66xx_0: GEL Output: DDR3 memory test... Started
+C66xx_0: GEL Output: DDR3 memory test... Passed
+C66xx_0: GEL Output: PLL and DDR Initialization completed(0) ...
+C66xx_0: GEL Output: configSGMIISerdes Setup... Begin
+C66xx_0: GEL Output: 
+SGMII SERDES has been configured.
+C66xx_0: GEL Output: Set Board and DSP IO/Timers Pins... 
+C66xx_0: GEL Output: Set Board and DSP IO/Timers Pins... Done.
+C66xx_0: GEL Output: Configuring CPSW ...
+C66xx_0: GEL Output: Configuring CPSW ...Done 
+C66xx_0: GEL Output: Global Default Setup... Done.
+C66xx_0: GEL Output: Invalidate All Cache...
+C66xx_0: GEL Output: Invalidate All Cache... Done.
+C66xx_0: GEL Output: GEL Reset...
+C66xx_0: GEL Output: GEL Reset... Done.
+
+
+//---------------------------------------------------------------------
+								测试记录
+//---------------------------------------------------------------------
+
+工具链用的是E:\1_yq\6678\spi_boot_suit_v2.3\1_utilities\1.6678\multicore_boot_4cores
+软件用的是eclipse
+烧写工程用的是nor_write
+烧写模式用的是app.bin
+
+第一次测试。将led_test0复制成4份，用工具链转换烧写没有想要的现象
+第二次测试。将led_test0，led_test1，led_test2，led_test3用工具链转换烧写没有想要的现象
+第三次测试。用的是6678的spirom_le.dat failed
+第四次测试。用的是led_test0，led_test1，led_test2，led_test3（6670）用工具链转换烧写spirom_le.dat 成功！！！！
+第五次测试。用的是将led_test0复制成4份，用工具链转换烧写spirom_le.dat 貌似就只有核0起来了？但是也没有闪烁呀。全黑了
+第六次测试。同五，只是再试一次，连接了仿真器没有断开。正常。撤掉仿真器，重启不正常
+第七次测试。同四。用的是led_test0，led_test1，led_test2，led_test3（6670）用工具链转换烧写spirom_le.dat  全黑
+可是多上电多复位几次，又可以了。我擦呀。。。。
+第八次测试。用的是led_test0复制成4份（6670）用工具链转换烧写spirom_le.dat 可以起来
+
+模式为S3-1011 S5 0010
+但是有个疑问，就是有时候起来不正常，闪灯根本就死在那里了，只有复位才能正常，并且有时候复位都不管用
+
+总结：用官方自带的烧写工程只能使用.dat格式的镜像。而之前烧写eeprom的时候是用.bin格式的镜像（是不是只能还有待考查）
+用同一个工程复制成几份是肯定不行的，因为每个工程的.rmd都不一样的。里面包含全局地址呀，内存映射呀，等等一些区分多核的重要信息
+
+
+下午：
+第一次测试：将magic addr注释了。结果也能起来，猜想哪个magic addr是在xxx.rmd文件里面写好了的，没必要在主核里面写，
+只要在主核里面使用IPC中断唤醒就行
+第二次测试：在第一次的测试上，注释掉最后一个IPC唤醒，如果最后一个核起不来就验证了IPC的必要性
+结果只有一个灯在闪，为毛呢？频率变快了
+第三次测试：重新改回去4核IPC，可以。结果就是三核的时候频率变快了。
+
+以上测试都是用一个led_test，所以只有一个灯在闪烁。可是上午一个led_test也能够多个灯闪烁
+
+
+
+//---------------------------------------------------------------------
+								多核例子
+//---------------------------------------------------------------------
+
+看到BIOS_MCSDK pdf 可以先把EVM_init在BIOS之前运行。然后执行其他的task
+4. Lets add the code we need to the led_play_ddr3.c file:
+/*
+* led_play.c
+*
+* Created on: Feb 6, 2012
+*
+*/
+#include <cerrno>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ti/sysbios/BIOS.h>
+#include <ti/sysbios/hal/Hwi.h>
+#include <ti/bios/include/swi.h>
+#include "ti\platform\platform.h"
+#include "ti\platform\resource_mgr.h"
+#pragma DATA_SECTION(next, ".sharedVar")
+#pragma DATA_ALIGN (next, 128)
+typedef union {
+uint32_t core;
+uint8_t padding[128];
+}n;
+n next;
+uint32_t maxFlashes = 50;
+/* OSAL functions for Platform Library */
+uint8_t *Osal_platformMalloc (uint32_t num_bytes, uint32_t alignment)
+{
+return malloc(num_bytes);
+}
+void Osal_platformFree (uint8_t *dataPtr, uint32_t num_bytes)
+{
+/* Free up the memory */
+if (dataPtr)
+{
+free(dataPtr);
+}
+}
+void Osal_platformSpiCsEnter(void)
+{
+/* Get the hardware semaphore.
+*
+* Acquire Multi core CPPI synchronization lock
+*/
+while ((CSL_semAcquireDirect (PLATFORM_SPI_HW_SEM)) == 0);
+return;
+}
+void Osal_platformSpiCsExit (void)
+{
+/* Release the hardware semaphore
+*
+* Release multi-core lock.
+*/
+CSL_semReleaseSemaphore (PLATFORM_SPI_HW_SEM);
+return;
+}
+/*****************************************************************************
+*
+* Function: Converts a core local L2 address to a global L2 address
+* Input addr: L2 address to be converted to global.
+* return: uint32_t Global L2 address
+*
+*****************************************************************************/
+uint32_t convert_CoreLocal2GlobalAddr (uint32_t addr)
+{
+uint32_t coreNum;
+/* Get the core number. */
+coreNum = CSL_chipReadReg(CSL_CHIP_DNUM);
+/* Compute the global address. */
+return ((1 << 28) | (coreNum << 24) | (addr & 0x00ffffff));
+}
+/*************************************************************************
+* main()
+* Entry point for the application.
+************************************************************************/
+int main()
+{
+	/* Start the BIOS 6 Scheduler - it will kick off our main thread ledPlayTask() */
+	platform_write("Start BIOS 6\n");
+	BIOS_start();
+}
+/*************************************************************************
+* EVM_init()
+* Initializes the platform hardware. This routine is configured to start in
+* the evm.cfg configuration file. It is the first routine that BIOS
+* calls and is executed before Main is called. If you are debugging within
+* CCS the default option in your target configuration file may be to execute
+* all code up until Main as the image loads. To debug this you should disable
+* that option.
+************************************************************************/
+void EVM_init()
+{
+	platform_init_flags sFlags;
+	platform_init_config sConfig;
+	int32_t pform_status;
+	/* Initialize the UART */
+	platform_uart_init();
+	platform_uart_set_baudrate(115200);
+	(void) platform_write_configure(PLATFORM_WRITE_ALL);
+	/*
+	* You can choose what to initialize on the platform by setting the following
+	* flags. Things like the DDR, PLL, etc should have been set by the boot loader.
+	*/
+	memset( (void *) &sFlags, 0, sizeof(platform_init_flags));
+	memset( (void *) &sConfig, 0, sizeof(platform_init_config));
+	sFlags.pll = 0; /* PLLs for clocking */
+	sFlags.ddr = 0; /* External memory */
+	sFlags.tcsl = 1; /* Time stamp counter */
+	sFlags.phy = 0; /* Ethernet */
+	sFlags.ecc = 0; /* Memory ECC */
+	sConfig.pllm = 0; /* Use libraries default clock divisor */
+	pform_status = platform_init(&sFlags, &sConfig);
+	/* If we initialized the platform okay */
+	if (pform_status != Platform_EOK) {
+		/* Initialization of the platform failed... die */
+		platform_write("Platform failed to initialize. Error code %d \n", pform_status);
+		platform_write("We will die in an infinite loop... \n");
+		while (1) {
+			(void) platform_led(1, PLATFORM_LED_ON, PLATFORM_USER_LED_CLASS);
+			(void) platform_delay(50000);
+			(void) platform_led(1, PLATFORM_LED_OFF, PLATFORM_USER_LED_CLASS);
+			(void) platform_delay(50000);
+		}
+	}
+	return;
+}
+/*************************************************************************
+* ledPlayTask()
+*
+* This is the main task for the example. It will write send text
+* messages to both the console and the UART using platform_write and then
+* each core (0-3) sequentially twinkles its LEDs. This task is configured to start in led_play.cfg
+* configuration file and it is called from BIOS.
+*
+************************************************************************/
+void ledPlayTask (void) {
+	platform_info p_info;
+	uint32_t led_no = 0;
+	uint32_t coreId, i;
+	/* determine the core number. */
+	coreId = CSL_chipReadReg (CSL_CHIP_DNUM);
+	/* Get information about the platform */
+	platform_get_info(&p_info);
+	/* determine which core to twinkle LED  */
+	if(coreId != 0){
+		while(1){
+		/* lets delay a bit before reading shared variable */
+			platform_delay(30000);
+			CACHE_invL1d (&next, 4, CACHE_FENCE_WAIT);
+			if(next.core == coreId)
+				break;
+		}
+	}
+	/* lets delay a bit before twinkling the next LED  */
+	platform_delay(30000);
+	i = 0;
+	led_no = coreId;
+	platform_write("core = %d starts twinkling its LED\n", coreId);
+	/* twinkle the LED based on core id and LED id, respectively  */
+	while(1) {
+		platform_led(led_no, PLATFORM_LED_ON, PLATFORM_USER_LED_CLASS);
+		platform_delay(300000);
+		platform_led(led_no, PLATFORM_LED_OFF, PLATFORM_USER_LED_CLASS);
+		platform_delay(300000);
+		i++;
+		if ( i == maxFlashes){
+			break;
+		}
+	}
+	/* let next core twinkles its LED  */
+	next.core = coreId + 1;
+	CACHE_wbL1d ((void *) &next, 4, CACHE_WAIT);
+	platform_write("core %d is done.\n", coreId);
+}
+
+5. Add the code to the cfg file led_play_ddr3.cfg by opening it with XDCscript editor by right click on
+configuration file->open with->XDCscript editor
+
+var Startup = xdc.useModule('xdc.runtime.Startup');
+var Defaults = xdc.useModule('xdc.runtime.Defaults');
+var Diags = xdc.useModule('xdc.runtime.Diags');
+var Error = xdc.useModule('xdc.runtime.Error');
+var Log = xdc.useModule('xdc.runtime.Log');
+var LoggerBuf = xdc.useModule('xdc.runtime.LoggerBuf');
+var Main = xdc.useModule('xdc.runtime.Main');
+var Memory = xdc.useModule('xdc.runtime.Memory')
+var SysMin = xdc.useModule('xdc.runtime.SysMin');
+var System = xdc.useModule('xdc.runtime.System');
+var Text = xdc.useModule('xdc.runtime.Text');
+var Csl = xdc.loadPackage('ti.csl');
+var BIOS = xdc.useModule('ti.sysbios.BIOS');
+var Clock = xdc.useModule('ti.sysbios.knl.Clock');
+var Swi = xdc.useModule('ti.sysbios.knl.Swi');
+var Task = xdc.useModule('ti.sysbios.knl.Task');
+var Semaphore = xdc.useModule('ti.sysbios.knl.Semaphore');
+var Hwi = xdc.useModule('ti.sysbios.hal.Hwi');
+/*
+* Program.argSize sets the size of the .args section.
+* The examples don't use command line args so argSize is set to 0.
+*/
+Program.argSize = 0x0;
+/*
+* Uncomment this line to globally disable Asserts.
+* All modules inherit the default from the 'Defaults' module. You
+* can override these defaults on a per-module basis using Module.common$.
+* Disabling Asserts will save code space and improve runtime performance.
+Defaults.common$.diags_ASSERT = Diags.ALWAYS_OFF;
+*/
+/*
+* Uncomment this line to keep module names from being loaded on the target.
+* The module name strings are placed in the .const section. Setting this
+* parameter to false will save space in the .const section. Error and
+* Assert messages will contain an "unknown module" prefix instead
+* of the actual module name.
+Defaults.common$.namedModule = false;
+*/
+/*
+* Minimize exit handler array in System. The System module includes
+* an array of functions that are registered with System_atexit() to be
+* called by System_exit().
+*/
+System.maxAtexitHandlers = 4;
+/*
+* Uncomment this line to disable the Error print function.
+* We lose error information when this is disabled since the errors are
+* not printed. Disabling the raiseHook will save some code space if
+* your app is not using System_printf() since the Error_print() function
+* calls System_printf().
+Error.raiseHook = null;
+*/
+/*
+* Uncomment this line to keep Error, Assert, and Log strings from being
+* loaded on the target. These strings are placed in the .const section.
+* Setting this parameter to false will save space in the .const section.
+* Error, Assert and Log message will print raw ids and args instead of
+* a formatted message.
+Text.isLoaded = false;
+*/
+/*
+* Uncomment this line to disable the output of characters by SysMin
+* when the program exits. SysMin writes characters to a circular buffer.
+* This buffer can be viewed using the SysMin Output view in ROV.
+SysMin.flushAtExit = false;
+*/
+/*
+* The BIOS module will create the default heap for the system.
+* Specify the size of this default heap.
+*/
+BIOS.heapSize = 0x1000;
+/* System stack size (used by ISRs and Swis) */
+Program.stack = 0x2000;
+/* Circular buffer size for System_printf() */
+SysMin.bufSize = 0x200;
+/*
+* Create and install logger for the whole system
+*/
+var loggerBufParams = new LoggerBuf.Params();
+loggerBufParams.numEntries = 16;
+var logger0 = LoggerBuf.create(loggerBufParams);
+Defaults.common$.logger = logger0;
+Main.common$.diags_INFO = Diags.ALWAYS_ON;
+System.SupportProxy = SysMin;
+/* Example 3 Create our memory map - i.e. this is equivalent to linker.cmd */
+Program.sectMap[".const"] = "DDR3";
+Program.sectMap[".text"] = "DDR3";
+Program.sectMap[".code"] = "DDR3";
+Program.sectMap[".data"] = "DDR3";
+Program.sectMap[".sysmem"] = "DDR3";
+Program.sectMap[".sharedVar"] = "DDR3";
+Program.sectMap["platform_lib"] = "DDR3";
+/* Lets register any hooks, tasks, etc that we want BIOS to handle */
+/*
+** Register an EVM Init handler with BIOS. This will initialize the hardware.
+** BIOS calls before it starts.
+*/
+Startup.firstFxns.$add('&EVM_init');
+/*
+** Create the Main Thread Task for our application.
+*/
+var tskNdkMainThread = Task.create("&ledPlayTask");
+tskNdkMainThread.stackSize = 0x2000;
+tskNdkMainThread.priority = 0x5;
+tskNdkMainThread.instance.name = "ledPlayTask"
+
+
+
+
+//---------------------------------------------------------------------
+							bat 批处理
+//---------------------------------------------------------------------
+@echo off 、echo off 、echo 
+echo 显示后面的信息
+echo off 不现实后面的命令，但是会显示echo off 字样
+加上@，命令和echo off 都不显示
+
+
+call 命令可以直接调用其他地方的应用
+
+ren 的用法很简单，其使用格式为：ren 旧文件 新文件名。例如，把test.txt改写为abc.txt，使用 ren test.txt abc.txt即可。 
+需要注意的是，旧文件可以使用绝对路径，也可以使用相对路径，但是，新文件名不能使用任何路径
+虽然ren的用法很简单，但是，它的功能却很强大，这主要得益于ren支持*和?这两个通配符：*表示任意多个字符，?表示一个字符。
+例如，要把所有的以.txt作为后缀名的文件改为以.doc作为后缀名，使用ren *.txt *.doc 即可
+
+这个时候，你可以使用不加提示就覆盖原文件的参数 /y （相当于自动选择了Yes选项）
+完整的命令为 copy /y d:\test\test.txt d:\ 
+如果复制的时候，你还需要把源文件改个名，比如把test.txt改为1.txt的时候
+可以直接使用：copy d:\test\test.txt d:\1.txt 这样的命令
+也就是说，在指定目的路径的时候，直接指定文件名，那么，新的文件名就是源文件复制之后的名字。 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
