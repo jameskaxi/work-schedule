@@ -1,0 +1,27 @@
+kindle
+ |
+ |-	http://t.bookdna.cn/ 		更新特价书(都是10元以下)
+ |-	http://wangpansou.cn/		书名+mobi
+ |-	http://www.bdsola.com/		书名+mobi
+ |-	http://www.xilinjie.com/	书名+mobi
+ |-	http://www.zamzar.com/		转换网站
+ |-https://www.zhihu.com/question/21158269		如何用好 Kindle？
+ |
+ |
+ |
+ |
+ |
+ |
+ |
+ |
+ |
+ |
+ |
+ |
+ |
+ |
+ |
+ |
+ |
+ |
+ |
