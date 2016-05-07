@@ -1,0 +1,214 @@
+
+用BIOS和不用BIOS的cmd是有不同的要求的。
+黄色书的第九章p183有说道：(BIOS)内存映射的定义有平台负责
+所以"自定义新建cmd"的方法不能用来修改已有的内存段的定义。
+而只能用于定义新的内存段，然如果用户想要修改SYS/BIOS管理的段的存放，
+需要用sectMap的方法。或者还可以用section exclude等等
+
+NO_BIOS时可以定义cmd，可以用
+BOOT_CORE0:		 o = 0x10800000 l = 0x000000c0
+....
+.myboot
+{
+	*.*<boot.obj>(.text)
+} > BOOT_CORE0
+....
+来固定c_int00入口地址
+
+1 byte = 8 bits
+int = 4 byte = 32 bites
+
+//-------------------------------------------------------------------------------------
+						MessageQ_H
+//-------------------------------------------------------------------------------------
+
+#define HEAP_NAME   "myHeapBuf"
+#define HEAPID      0
+#define NUMLOOPS    10
+
+typedef enum vlfftMode {
+  VLFFT_DO_NOTHING = 0,
+  VLFFT_PROCESS_1stITER = 1,
+  VLFFT_PROCESS_2ndITER = 2,
+  VLFFT_EXIT = 3,
+  VLFFT_OK = 4
+} vlfftMode;
+
+
+typedef struct vlfftMessageQ_Msg {
+	MessageQ_MsgHeader header;	//? bytes
+	vlfftMode          mode;	//1 bytes?
+	Int32              fill[7];	// 7*4=28 bytes
+} vlfftMessageQ_Msg;
+
+typedef struct {
+	MessageQ_Msg     msg1;
+	MessageQ_Msg     msg2;
+	MessageQ_Msg     msg3;
+	MessageQ_Msg     msg4;
+	MessageQ_Msg     msg5;
+	MessageQ_Msg     msg6;
+	MessageQ_Msg     msg7;
+
+	MessageQ_Handle  messageQ;
+
+	MessageQ_QueueId remoteQueueIdCore1;
+	MessageQ_QueueId remoteQueueIdCore2;
+	MessageQ_QueueId remoteQueueIdCore3;
+	MessageQ_QueueId remoteQueueIdCore4;
+	MessageQ_QueueId remoteQueueIdCore5;
+	MessageQ_QueueId remoteQueueIdCore6;
+	MessageQ_QueueId remoteQueueIdCore7;
+} messageQParams_t;
+
+typedef struct {
+
+	vlfftMessageQ_Msg	*msg[8];
+
+	MessageQ_Handle		messageQ;
+
+	MessageQ_QueueId	remoteQueueIdCore[8];
+
+} vlfftMessageQParams_t;
+
+
+//-------------------------------------------------------------------------------------
+						APP.C
+//-------------------------------------------------------------------------------------
+
+Char localQueueName[6];
+Char nextQueueName[6];
+
+Char core0QueueName[6];
+Char core1QueueName[6];
+Char core2QueueName[6];
+Char core3QueueName[6];
+Char core4QueueName[6];
+Char core5QueueName[6];
+Char core6QueueName[6];
+Char core7QueueName[6];
+
+
+void main()
+{
+	/* 参数的定义 */
+	HeapBufMP_Handle	heapHandle;
+    HeapBufMP_Params	heapBufParams;
+    Task_Params     	params;
+
+	/* IPC start */
+	Ipc_start();
+
+	/* 如果是主核，需要进行heap的创建和初始化 */
+	if (MultiProc_self() == 0) {
+		//clearRegisters(0);
+		HeapBufMP_Params_init(&heapBufParams);
+		heapBufParams.regionId       = 0;
+        heapBufParams.name           = HEAP_NAME;
+        heapBufParams.numBlocks      = 24;
+        heapBufParams.align          = 128;
+        heapBufParams.blockSize      = sizeof(vlfftMessageQ_Msg);
+		heapHandle = HeapBufMP_create(&heapBufParams);
+		if (heapHandle == NULL) {
+            System_abort("HeapBufMP_create failed\n" );
+        }
+		MessageQ_registerHeap((IHeap_Handle)heapHandle, HEAPID);//IHeap_Handle??
+	}
+
+	/* 各个核的注册 */
+	System_sprintf(localQueueName, "CORE%d", MultiProc_self());
+    System_sprintf(core0QueueName, "CORE%d", 0               );
+    System_sprintf(core1QueueName, "CORE%d", 1               );
+    System_sprintf(core2QueueName, "CORE%d", 2               );
+    System_sprintf(core3QueueName, "CORE%d", 3               );
+    System_sprintf(core4QueueName, "CORE%d", 4               );
+    System_sprintf(core5QueueName, "CORE%d", 5               );
+    System_sprintf(core6QueueName, "CORE%d", 6               );
+    System_sprintf(core7QueueName, "CORE%d", 7               );
+
+    /*任务初始化参数，创建任务 */
+	Task_Params_init(&params);
+	params.stackSize = 0x2000;
+	if (MultiProc_self() == 0) {
+    	Task_create(vlfft_master, &params, NULL);
+	}
+	else {
+    	Task_create(vlfft_slave, &params, NULL);
+	}
+
+	BIOS_start();
+	return (0);
+}
+
+/* master任务只在主核运行 */
+vlfft_master(UArg arg0, UArg arg1)
+{
+	Int                status;
+	Int                indexCore;
+
+	vlfftMessageQParams_t messageQParams;
+
+	messageQParams.messageQ = MessageQ_create(localQueueName, NULL);
+	if (messageQParams.messageQ == NULL) {
+        System_abort("MessageQ_create failed\n" );
+    }
+
+	do {
+		status = MessageQ_open(core1QueueName, &messageQParams->remoteQueueIdCore[1]);//bang ding core1
+	} while (status < 0);
+
+	for( indexCore=1; indexCore<maxNumCores; indexCore++ ) {
+		messageQParams->msg[indexCore] = (vlfftMessageQ_Msg *)MessageQ_alloc(HEAPID, sizeof(vlfftMessageQ_Msg));
+	}
+	
+	MessageQ_setMsgId( (MessageQ_Msg)messageQParams->msg[indexCore], msgId);
+	MessageQ_put();
+
+	MessageQ_get();
+	//MessageQ_getMsgId();
+
+}
+
+/* slave任务在所有的从核运行 */
+vlfft_slave(UArg arg0, UArg arg1)
+{
+
+	HeapBufMP_open(HEAP_NAME, &heapHandle);
+
+	MessageQ_registerHeap((IHeap_Handle)heapHandle, HEAPID);
+
+	messageQ = MessageQ_create(localQueueName, NULL);
+
+	do {
+        status = MessageQ_open(core0QueueName, &core0QueueId);        
+    } while (status < 0);
+
+    msg = (vlfftMessageQ_Msg *)MessageQ_alloc(HEAPID, sizeof(vlfftMessageQ_Msg));
+
+    while(1)
+    {
+    	status = MessageQ_get(messageQ, (MessageQ_Msg *)&msg, MessageQ_FOREVER);
+
+    	if(mode == VLFFT_DO_NOTHING)
+	    {
+	         msg->mode = VLFFT_PROCESS_1stITER;//VLFFT_OK;
+	    }
+
+	    if(mode == VLFFT_DO_NOTHING)
+	    {
+	         msg->mode = VLFFT_PROCESS_1stITER;//VLFFT_OK;
+	    }
+
+	    if(mode == VLFFT_DO_NOTHING)
+	    {
+	         msg->mode = VLFFT_PROCESS_1stITER;//VLFFT_OK;
+	    }
+    }
+}
+
+
+
+
+
+
+
