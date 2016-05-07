@@ -1,0 +1,67 @@
+
+Platform_STATUS platform_delay(uint32_t usecs)
+{
+    int32_t delayCount = (int32_t) usecs * platform_mcb.frequency;
+    int32_t start_val  = (int32_t) CSL_chipReadTSCL();
+
+    while (((int32_t)CSL_chipReadTSCL() - start_val) < delayCount);
+
+    return Platform_EOK;
+}
+
+void platform_delaycycles(uint32_t cycles)
+{
+	uint32_t start_val  = CSL_chipReadTSCL();
+
+	while ((CSL_chipReadTSCL() - start_val) < cycles);
+
+    return;
+}
+
+
+
+<csl_chip.c>
+Uint32  CSL_chipReadReg(
+    CSL_ChipReg               reg
+)
+Uint32  CSL_chipWriteReg (
+    CSL_ChipReg               reg,
+    CSL_Reg32                 val
+)
+
+
+
+添加lib还要在下面search path里面添加lib的位置
+evm的lib有放evm lib的位置，原产的csl.lib有原始的lib位置
+
+
+	 .myboot
+     {
+        *.*<boot.obj>(.text)
+     } > BOOT_CORE0
+
+这一段话就是不能加在带有SYS/BIOS的工程里面。一直是报错"./configPkg/linker.cmd", line 150: warning #10068-D: no matching section
+
+
+如果需要更改*.map里面MEMORY的对应关系需要自己新建platform，或者在cfg文件里面加上Pragram.setMap。。。
+
+
+
+
+myBoard
+
+ti.platforms.evm6670	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
