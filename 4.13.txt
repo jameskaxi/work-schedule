@@ -1,0 +1,178 @@
+﻿//----------------------------------------------------------------------------------------------------
+					KeyStone的库文件
+//----------------------------------------------------------------------------------------------------
+C:\Program Files (x86)\Texas Instruments\xdctools_3_22_04_46\packages\xdc\runtime
+这里有很多SYS/BIOS的库文件
+
+//----------------------------------------------------------------------------------------------------
+					KeyStone的前面必须的几个步骤
+//----------------------------------------------------------------------------------------------------
+使用KEYSTORE必要的几个步骤是需要的。
+
+void main()
+{   
+	/*enable TSC, memory protection interrupts, EDC for internal RAM;clear cache; protect L1 as cache*/
+	KeyStone_common_CPU_init();
+
+	/*print device information. Enable memory protection interrupts, EDC for MSMC RAM*/
+	KeyStone_common_device_init();
+
+	//enable exception handling
+	KeyStone_Exception_cfg(TRUE);
+
+	if(C6678_EVM==gDSP_board_type)
+	{
+		//DSP core speed: 100*10/1=1000MHz
+		KeyStone_main_PLL_init(100, 10, 1); 
+	}
+	else
+	{
+		puts("Unknown DSP board type!");
+		return;
+	}
+
+	//DDR init 66.66667*20/1= 1333
+	KeyStone_DDR_init (66.66667, 20, 1, NULL);
+}
+
+
+//----------------------------------------------------------------------------------------------------
+			KeyStone使用多核（在想，不要muiltbooting了？IPC中断？）
+//----------------------------------------------------------------------------------------------------
+selfId = CSL_chipReadReg (CSL_CHIP_DNUM);
+  
+System_printf("Core (\"%s\") starting\n", MultiProc_getName(selfId));
+  
+  if (numCores == 0) {
+      numCores = MultiProc_getNumProcessors();
+  }
+
+  if (selfId == 0)
+  {
+    /* QMSS, and CPPI system wide initializations are run on
+      * this core */
+    result = systemInit();
+    if (result != 0) 
+    {
+    System_printf("Error (%d) while initializing QMSS\n", result);
+    } 
+  }
+
+  /* Attach all cores. */
+
+
+
+
+//----------------------------------------------------------------------------------------------------
+					post	pend	accept
+//----------------------------------------------------------------------------------------------------
+做同步时经常会用到 pend, post, accept;现在做下简单的记录:
+
+accept: 是去取某个信号量,如果无效则立即返回; Request 
+
+pend:  是去取某个信号量, 如果无效则进入休眠; Wait ( P )
+
+post: 释放一个信号量; Signal ( V ) 
+
+
+//----------------------------------------------------------------------------------------------------
+					CSL库文件的问题
+//----------------------------------------------------------------------------------------------------
+加CSL库文件的时候出现一个问题：
+自己新建的工程中调用了CSL_chipReadReg ()函数，连接中出现unresolved symbol的问题。
+结果应该是要：在properties->CCS build->C6000 linker->file search path中添加csl lib，
+"C:\Program Files\Texas Instruments\pdk_C6678_1_0_0_17\packages\ti\csl\lib\ti.csl.ae66"
+如果还有问题，需要设置文件输出格式，因为：
+obj文件有ELF和COFF两种格式，COFF格式的obj和ELF格式的obj(lib)不能link在一起
+ti.csl.ae66是ELF格式小端的lib文件
+如果你的工程是COFF格式，那就找不到这个lib里的函数
+如果你使用的是CCS5,可以检查工程的properties->general->output format,看是ELF还是COFF.
+
+//----------------------------------------------------------------------------------------------------
+					不懂
+//----------------------------------------------------------------------------------------------------
+通过图形界面(cfg)设置BIOS用到sem信号量的时候还需要在文件里面申明extern Semaphore_Handle sem;貌似还不是初始化的值了
+
+
+//----------------------------------------------------------------------------------------------------
+					
+//----------------------------------------------------------------------------------------------------
+#define PACKET_UDP_DEST_PORT_SHIFT  36
+#define PACKET_PAYLOAD_SHIFT        42
+#pragma DATA_ALIGN(pktMatch, 16)
+UInt8 pktMatch[] = {
+0x10, 0x11, 0x12, 0x13, 0x14, 0x15,                      /* Dest MAC */
+0x00, 0x01, 0x02, 0x03, 0x04, 0x05,                      /* Src MAC  */
+0x08, 0x00,                								 /* Ethertype = IPv4 */
+	。
+	。
+	。
+这个包的格式从哪个文档可以查到？是怎么使用的呢？
+navigator的文档中所写包的格式与这个不太相符。
+感谢！
+这里的包格式是以太网的包格式，属于MAC包，跟navigator没有关系，属于你的用户数据。
+navigator文档中的包格式是descriptor的包格式，不是一个东西。descriptor的包格式在初始化descriptor的时候有体现，
+注意看Init_Qmss ()中的cppiDescCfg结构体，它在初始化的时候配置了许多descriptor的包格式上的段。
+
+//----------------------------------------------------------------------------------------------------
+				cache_inv()  cache_wb()
+//----------------------------------------------------------------------------------------------------
+C6678多核编程，设置同步标志时用了cache保护，仍然做不到每个核同步更新。
+SYS_CACHE_INV ((void *) &multiCoreSyncDone[0], 128, CACHE_WAIT);
+
+
+#pragma DATA_ALIGN   (testResult, 128)
+#pragma DATA_SECTION(testResult,   ".sharedDDR")
+volatile UInt32  testResult[NUM_CORES];    
+
+
+关于CACHE_INV(,,,) & CACHE_WB(,,,)的几个参数
+blockPtr
+内存地址，建议是最小单元的整数倍，好像是128字节吧？
+byteCnt
+字节数，也建议是整数倍
+type
+类型，cpu有几个cache，如果是Cache_Type_ALL则针对你指定的地址和长度内所有类型的cache都会无效，
+Cache_Type_ALLD指的是数据cache，相应的还有指令的cache，L1D指的是一级数据cache
+wait
+指的是是否等待所有指令都执行完毕再返回，如果你执行完inv后马上要对内存进行操作，那么建议你给TRUE，
+让cpu阻塞在这直到cache清理完毕
+
+！！！在使用共享数据前，首先对共享memory cache invalid，是为了保证后续处理可以读到最新的数据。！！！！！
+想使用函数Cache_inv 和Cache_wb实现不同核的Cache与内存的同步性。
+例如我想对于数组 float array[SIZE]实现Cache与内存之间的同步，则byteCnt是不是就是sizeof(float) 与 SIZE的*
+
+
+//----------------------------------------------------------------------------------------------------
+						#pragma
+//----------------------------------------------------------------------------------------------------
+#pragma DATA_ALIGN
+语法：
+#pragma DATA_ALIGN( symbol，constant）
+作用:排列symbol到constant 指点的列边界，constant为2的n次方，n=0,1,2..
+说白了就是首地址的字节对齐，首地址字对齐的最大好处就是可以告诉编译器充分利用行或块拷贝。
+假设一个CACHE 的line 是128 字节【CACHE line简单说就是CACHE一次加载的字节数】。这样，如果首地址128 字节对齐，
+那么取一个128 字节的数据，只使用一个CACHE行就够了(如果不对齐，则取一个128 字节的数据至少需要2个CACHE行)。
+			void func(void)
+			{
+				#pragma DATA_ALIGN(x，128）
+				int x[200];
+			}
+#pragma STRUCT_ALIGN
+语法：
+#pragma STRUCT_ALIGN(symbol，constant);
+这个不用多说，和#pragma DATA_ALIGN很类似，只是#pragma STRUCT_ALIGN是针对结构而言。
+
+//----------------------------------------------------------------------------------------------------
+						cahce
+//----------------------------------------------------------------------------------------------------
+http://www.360doc.com/content/10/0909/11/2036337_52328547.shtml
+一、cache性能特点
+    优异的cache性能很大程度上依赖于cache lines的重复使用，优化的最主要目标也在于此，
+一般通过恰当的数据和代码内存布置，以及调整CPU的内存访问顺序来达到此目的。由此，应该熟悉cache内存架构，特别是cache内存特点，
+比如line size, associativity, capacity, replacement scheme,read/write allocation, miss pipelining和write buffer.另外，
+还需要知道什么条件下CPU STALLS会发生以及产生延时的cycle数。只有清楚了这些，才能清楚如何优化cache。
+二、优化cache
+
+
+
